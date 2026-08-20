@@ -1,8 +1,9 @@
 # agent-jobs
 
 A long-running job an AI coding agent launched, reporting its own completion
-back to the terminal host. The agent ends its turn instead of blocking on the
-job, and gets re-engaged when the result actually arrives.
+back to the terminal host. The agent can end its turn and hand the terminal
+back to you; when the job finishes, the host prompts the agent to pick the
+result up. Mainly for CLIs that don't wake themselves.
 
 This is the script side of AgentTerm's
 [`job-events.md`](https://github.com/albertwujj/agent-term/blob/main/job-events.md)
