@@ -2,8 +2,9 @@
 
 A long-running job an AI coding agent launched, reporting its own completion
 back to the terminal host. The agent can end its turn and hand the terminal
-back to you; when the job finishes, the host prompts the agent to pick the
-result up. Mainly for CLIs that don't wake themselves.
+back to you; when the job finishes and the agent has been idle since, the
+host prompts it to pick the result up. An agent its CLI already woke, or that
+is busy with something else, gets no second report.
 
 This is the script side of AgentTerm's
 [`job-events.md`](https://github.com/albertwujj/agent-term/blob/main/job-events.md)
@@ -45,8 +46,8 @@ host relays it without parsing it.
 | Mechanism | Effect |
 |---|---|
 | Relabels `argv[0]` to `script.sh[sess:<token>]` | Opts into liveness watching. A labeled process that dies with no event earns the agent a "gone without a completion report" notice, covering the SIGKILL and OOM case where a result is never coming. |
-| Writes one event file to `${TMPDIR:-/tmp}/agent-events/` on exit | The primary signal. The host delivers `msg` to the agent verbatim, exactly once, then deletes the file. |
-| Reads `AGENT_SESSION_ID` from the environment | The routing key, set by the host on the shell it spawns, and inherited by every process in that window. Unset means nothing is listening and the whole block is a no-op. |
+| Writes one event file to `${TMPDIR:-/tmp}/agent-events/` on exit | The primary signal. The host delivers `msg` to the agent verbatim, at most once, and only to an agent that has been idle since the job finished; otherwise it consumes the event silently. The file is deleted either way. |
+| Reads `AGENT_SESSION_ID` from the environment | The routing key, set by the host on the shell it spawns and inherited by every process in that window. A resumed session keeps its token, so a job started before the resume still reports to it. Unset means nothing is listening and the whole block is a no-op. |
 | Exports `_AGENT_JOB_TOP` | Nested invocations stay silent, so a wrapper that reuses an inner script reports exactly once, from the outermost process. |
 
 `HUP`, `INT`, and `TERM` funnel into the `EXIT` trap, so an interrupted job
@@ -65,8 +66,9 @@ AGENT_SESSION_ID= ./long-job.sh
 
 None, deliberately. This is insurance underneath whatever re-engagement duty
 an agent's runbook already imposes, and nothing may depend on it for
-correctness. The contract covers the host's half: delivery timing, the
-"no completion report" notice, and how events age out.
+correctness. The contract covers the host's half: when a report is
+delivered and when it is withheld, the "no completion report" notice, and
+how events age out.
 
 ## Tests
 
