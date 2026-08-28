@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# agent-job — run one command as a self-reporting background job.
+#
+# The launch-side of agent-term's job-events.md contract: wrap any command,
+# participating or not, and its completion is reported back to the terminal
+# session that launched it. An agent can start a long job this way and end
+# its turn; the host re-engages it with the result once the job finishes
+# and the agent has been idle since.
+#
+#     agent-job npm test
+#     agent-job scripts/watch-build.sh --url https://…
+#
+# Inert without a host (AGENT_SESSION_ID unset) and under another
+# participating job (_AGENT_JOB_TOP set): the command just runs.
+#
+# While the command runs, a start record in the spool tells the host a job
+# is live; the EXIT trap removes it and writes the completion event. Only
+# SIGKILL-class deaths skip the trap, and the leftover start record is what
+# lets the host report those.
+#
+# The default report is the command line and its exit code. A wrapped
+# script says something richer by writing one line to $AGENT_JOB_MSG_FILE
+# (exported by this wrapper), or — if it sources job-events.sh — by
+# setting AGENT_JOB_MSG as usual; the sourced stanza forwards it on exit.
+set -u
+
+if [ $# -eq 0 ]; then
+  echo 'usage: agent-job <command> [args...]' >&2
+  exit 2
+fi
+
+if [ -z "${AGENT_SESSION_ID:-}" ] || [ -n "${_AGENT_JOB_TOP:-}" ]; then
+  exec "$@"
+fi
+
+_aj_sess=$(printf '%s' "$AGENT_SESSION_ID" | tr -cd 'A-Za-z0-9')
+export _AGENT_JOB_TOP=$$
+_aj_started=$(date -u +%FT%TZ)
+_aj_cmd="$*"
+_aj_dir="${TMPDIR:-/tmp}/agent-events"
+_aj_start="$_aj_dir/$(date +%s).$$.started"
+{ mkdir -p "$_aj_dir" && printf 'session=%s\nstarted=%s\ncmd=%s\n' \
+    "$_aj_sess" "$_aj_started" "$_aj_cmd" > "$_aj_start"; } 2>/dev/null || true
+AGENT_JOB_MSG_FILE=$(mktemp "${TMPDIR:-/tmp}/agent-job-msg.XXXXXX" 2>/dev/null) || AGENT_JOB_MSG_FILE=""
+export AGENT_JOB_MSG_FILE
+
+_aj_event() {
+  _aj_rc=$?
+  _aj_msg=""
+  if [ -n "$AGENT_JOB_MSG_FILE" ] && [ -s "$AGENT_JOB_MSG_FILE" ]; then
+    _aj_msg=$(head -1 "$AGENT_JOB_MSG_FILE" 2>/dev/null)
+  fi
+  [ -n "$AGENT_JOB_MSG_FILE" ] && rm -f "$AGENT_JOB_MSG_FILE" 2>/dev/null
+  mkdir -p "$_aj_dir" 2>/dev/null || return 0
+  printf 'session=%s\nts=%s\nstarted=%s\nmsg=%s\n' \
+    "$_aj_sess" "$(date -u +%FT%TZ)" "$_aj_started" \
+    "${_aj_msg:-$_aj_cmd exited rc=$_aj_rc}" \
+    > "$_aj_dir/$(date +%s).$$.event" 2>/dev/null || true
+  rm -f "$_aj_start" 2>/dev/null || true
+}
+trap 'exit' HUP INT TERM PIPE QUIT   # funnel graceful signals into the EXIT trap
+trap _aj_event EXIT
+
+"$@"
