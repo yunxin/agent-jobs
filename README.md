@@ -7,9 +7,10 @@ finishes. agent-jobs adds the option that was missing. The agent starts the
 job under the `agent-job` wrapper, ends its turn, and the terminal reports
 the result to the agent when the job is done.
 
-It works with a terminal that watches for these reports, such as
-[AgentTerm](https://github.com/albertwujj/agent-term). Without one, jobs
-run exactly as before and nothing else happens.
+agent-jobs is the job's side of this: the wrapper, and the records it
+writes as the job starts and ends. A terminal builds the rest on top:
+[AgentTerm](https://github.com/albertwujj/agent-term) shows the running
+jobs and hands the report to the agent.
 
 ## Adding it
 
