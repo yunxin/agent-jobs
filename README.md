@@ -11,47 +11,44 @@ It works with a terminal that watches for these reports, such as
 [AgentTerm](https://github.com/albertwujj/agent-term). Without one, jobs
 run exactly as before and nothing else happens.
 
-## Setting up, once per project
+## Using it
 
-1. Clone this repo into `ai/` in your project, and leave `ai/` out of
-   `.gitignore` so `@` pickers can see it. Other placements are described in
-   AgentTerm's
-   [placement](https://github.com/albertwujj/agent-term/blob/main/docs/conventions.md#placement)
-   notes.
+Clone this repo into `ai/` in your project, and leave `ai/` out of
+`.gitignore` so `@` pickers can see it. Other placements are described in
+AgentTerm's
+[placement](https://github.com/albertwujj/agent-term/blob/main/docs/conventions.md#placement)
+notes. Then prompt the agent, CI being the example:
 
-2. Make a folder of your own beside it, for example `ai/ci/`, and ask the
-   agent to fill it:
+```text
+Use agent-job from ai/agent-jobs to run CI, so I can give you other tasks
+while waiting for the result.
+```
 
-   ```text
-   Create ai/ci/run-ci.md and ai/ci/run-ci.sh for this project's CI,
-   following ai/agent-jobs/long-jobs.md. CI runs with: make check
-   ```
-
-   The agent writes two things. `run-ci.md` is the verb doc: the steps the
-   agent follows every time CI runs. `run-ci.sh` is the script for the
-   usual run.
-
-3. Read the verb doc and change what you want. From then on it is the
-   guide. The agent follows it and does not edit it. The scripts cover the
-   usual runs; when a run needs something they do not do, the agent may
-   write another script beside them, but never another doc.
-
-## A run
-
-Type `@run-ci` in the prompt. It completes to `ai/ci/run-ci.md`, and the
-agent follows it: it starts the script under `agent-job`, tells you CI is
-running, and ends its turn.
-
-Within a minute, the terminal shows a running-jobs icon at the top right.
-You can talk to the agent about something else, or walk away.
+The agent starts CI under `agent-job`, tells you it is running, and ends
+its turn. Within a minute, the terminal shows a running-jobs icon at the
+top right. You can talk to the agent about something else, or walk away.
 
 When the job finishes, the terminal waits for the agent to be idle for two
-minutes, then pastes the report into its prompt: `run-ci: PASS` or
-`run-ci: FAIL`, with the path of the log. The agent reads the log, fixes
-what it finds, and runs CI again the same way, until the report says pass.
+minutes, then pastes the report into its prompt: the command and its exit
+code, or the line the command wrote for it. The agent reads the log, fixes
+what it finds, and runs CI again the same way, until CI is green.
 
-The quickest first try, in any window, is `ai/agent-jobs/bin/agent-job
-sleep 180`: the icon appears, and three minutes later the report does.
+## Making it a habit
+
+For a job the project runs often, the agent can keep the way it runs it.
+Ask for a folder of your own beside the clone, `ai/ci/` say, with a verb
+doc, `run-ci.md`, and the scripts, written to
+[`long-jobs.md`](long-jobs.md):
+
+```text
+Create ai/ci/run-ci.md and ai/ci/run-ci.sh for this project's CI,
+following ai/agent-jobs/long-jobs.md. CI runs with: make check
+```
+
+Read the verb doc and change what you want. From then on `@run-ci` runs
+it: the agent follows the doc without editing it, and the scripts cover
+the usual runs; for a run they do not cover, the agent may write another
+script beside them, but never another doc.
 
 ## Two things to know
 
