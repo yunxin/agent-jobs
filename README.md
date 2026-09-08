@@ -61,6 +61,25 @@ Write the message for the agent that launched the job: what ran, how it came
 out, one key link. Domain vocabulary lives in that line and nowhere else. The
 host relays it without parsing it.
 
+## A full example
+
+`examples/` carries one worked loop, end to end: a verb doc the agent
+follows and the script it runs.
+
+- [`examples/run-ci.md`](examples/run-ci.md): name it in a prompt
+  (`@run-ci` completes to it) and the agent starts the project's CI under
+  `agent-job`, detached, ends its turn, and acts on the report when it
+  arrives.
+- [`examples/run-ci.sh`](examples/run-ci.sh): runs the CI command (its
+  arguments, else `$CI_COMMAND`, else `npm test`), with the output in a
+  log, and reports `run-ci: PASS log=<path>` or
+  `run-ci: FAIL rc=<n> log=<path>`.
+
+The script shows the shape a self-reporting job settles into: one verdict
+line on stdout for a caller, an exit code that mirrors it, and one
+`emit()` that sets `AGENT_JOB_MSG` at every exit path, so the agent reads
+the same words a script would parse.
+
 ## What it does
 
 | Mechanism | Effect |
@@ -94,6 +113,7 @@ how events age out.
 
 ```bash
 tests/job-events.sh
+tests/examples.sh
 ```
 
 Covers the inert path, the event drop and its fields, the start record's
