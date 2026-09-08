@@ -14,8 +14,9 @@ reports the result to you when the run finishes.
    the tool's own background option for this line instead.
 
    The script runs the arguments you give it, else `$CI_COMMAND` through
-   bash, else `npm test`. Pass the project's CI command as the arguments
-   when it is neither. The run's output goes to a log the report names.
+   bash, else a two-minute sleep, a stand-in that shows the loop. Pass the
+   project's CI command as the arguments when it has one. The run's output
+   goes to a log the report names.
 
 2. Say that CI is running, and end your turn. Do not poll, sleep, or tail
    the log: the report arrives on its own once the run ends and you have

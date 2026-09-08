@@ -9,7 +9,7 @@
 #
 # Usage: run-ci.sh [command...]
 #   The command to run: the arguments, else $CI_COMMAND (run through bash),
-#   else `npm test`.
+#   else a two-minute sleep, a stand-in CI that shows the loop end to end.
 #   CI_LOG   where the run's output goes (default: a file under $TMPDIR)
 #
 # Verdict  exit  meaning
@@ -29,7 +29,9 @@ if [ $# -gt 0 ]; then
 elif [ -n "${CI_COMMAND:-}" ]; then
   cmd=(bash -c "$CI_COMMAND")
 else
-  cmd=(npm test)
+  # The stand-in: long enough for the host's runner icon to show and the
+  # report to follow, so the loop can be seen before a real command is in.
+  cmd=(sleep 120)
 fi
 CI_LOG="${CI_LOG:-$(mktemp "${TMPDIR:-/tmp}/run-ci.XXXXXX")}"
 

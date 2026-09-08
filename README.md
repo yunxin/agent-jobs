@@ -80,8 +80,8 @@ follows and the script it runs.
   `agent-job`, detached, ends its turn, and acts on the report when it
   arrives.
 - [`examples/run-ci.sh`](examples/run-ci.sh): runs the CI command (its
-  arguments, else `$CI_COMMAND`, else `npm test`), with the output in a
-  log, and reports `run-ci: PASS log=<path>` or
+  arguments, else `$CI_COMMAND`, else a two-minute sleep as a stand-in, so
+  `@run-ci` alone shows the loop), with the output in a log, and reports `run-ci: PASS log=<path>` or
   `run-ci: FAIL rc=<n> log=<path>`.
 
 The script shows the shape a self-reporting job settles into: one verdict
