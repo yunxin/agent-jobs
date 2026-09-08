@@ -57,6 +57,7 @@ still reports to the session that comes back.
 ## The docs
 
 - [`long-jobs.md`](long-jobs.md): what the agent follows.
+- AgentTerm's [long jobs](https://github.com/albertwujj/agent-term/blob/main/docs/jobs.md) page: the loop from the terminal's side, with CI as the example.
 - [`scripts/README.md`](scripts/README.md): how the reporting works
   underneath, and how a script that is run on its own reports.
 
