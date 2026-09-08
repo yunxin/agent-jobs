@@ -44,7 +44,7 @@ reading the log at the path it chose when it launched the job.
   that was idle when the job finished. If you kept the agent busy, the
   report is dropped, since a paste would arrive late and read as a stale
   second result. The agent then checks the result itself when you ask, or
-  when it next needs it.
+  when it needs it.
 
 - **A job that is killed still gets noticed.** A process killed outright
   writes no report, but the terminal sees that it is gone and tells the
