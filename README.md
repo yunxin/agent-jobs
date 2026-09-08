@@ -38,11 +38,6 @@ minutes, then pastes the report into its prompt: the command and its exit
 code, or a line the command wrote for it. The agent acts on the report,
 reading the log at the path it chose when it launched the job.
 
-[`long-jobs.md`](long-jobs.md) has the rest for the agent: a job that
-writes its own report line, and, for a job the project runs often, keeping
-the way it runs as a verb doc and scripts in a folder of your own beside
-this clone.
-
 ## Two things to know
 
 - **A busy agent gets no report.** The report is pasted only to an agent
