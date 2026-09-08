@@ -1,119 +1,87 @@
 # agent-jobs
 
-A long-running job an AI coding agent launched, reporting its own completion
-back to the terminal host. The agent can end its turn and hand the terminal
-back to you; while the job runs the host shows that background work is live,
-and when it finishes and the agent has been idle since, the host prompts the
-agent to pick the result up. An agent its CLI already woke, or that is busy
-with something else, gets no second report.
+When a coding agent starts a long job, such as CI, a heavy test suite or a
+deploy, it has two bad choices: sit and watch it, which blocks the
+terminal, or end its turn, after which nobody is there when the job
+finishes. agent-jobs removes the choice. The agent starts the job, ends its
+turn, and the terminal reports the result to the agent when the job is
+done.
 
-This is the script side of AgentTerm's
-[`job-events.md`](https://github.com/albertwujj/agent-term/blob/main/docs/dev/job-events.md)
-contract. It is inert when no participating host is present, and
-host-agnostic: any host that watches the spool can consume it.
+It works with a terminal that watches for these reports, such as
+[AgentTerm](https://github.com/albertwujj/agent-term). Without one, jobs
+run exactly as before and nothing else happens.
 
-## The wrapper
+## Setting up, once per project
 
-`bin/agent-job` runs one command as a self-reporting job:
+1. Clone this repo into `ai/` in your project, and leave `ai/` out of
+   `.gitignore` so `@` pickers can see it. Other placements are described in
+   AgentTerm's
+   [placement](https://github.com/albertwujj/agent-term/blob/main/docs/conventions.md#placement)
+   notes.
 
-```bash
-agent-job npm run test:slow
-agent-job scripts/watch-build.sh --url https://ci.example.com/job/912/
-```
+2. Make a folder of your own beside it, for example `ai/ci/`, and ask the
+   agent to fill it:
 
-The default report is the command line and its exit code. A command says
-something richer by writing one line to `$AGENT_JOB_MSG_FILE`, which the
-wrapper exports and reads at exit:
+   ```text
+   Create ai/ci/run-ci.md and ai/ci/run-ci.sh for this project's CI,
+   following ai/agent-jobs/long-jobs.md. CI runs with: make check
+   ```
 
-```bash
-agent-job bash -c 'make check && v=PASS || v=FAIL; echo "make check: $v log=/tmp/ci.log" > "$AGENT_JOB_MSG_FILE"'
-```
+   The agent writes two things. `run-ci.md` is the verb doc: the steps the
+   agent follows every time CI runs. `run-ci.sh` is the script for the
+   usual run.
 
-Write that line for the agent that launched the job: what ran, how it came
-out, one key link. Domain vocabulary lives in that line and nowhere else;
-the host relays it without parsing it.
+3. Read the verb doc and change what you want. From then on it is the
+   guide. The agent follows it and does not edit it. The scripts cover the
+   usual runs; when a run needs something they do not do, the agent may
+   write another script beside them, but never another doc.
 
-## What to tell the agent
+## A run
 
-An agent runs a long job under the wrapper. Three things, in the project's
-guide file or a verb doc of your own, so no prompt has to carry them:
+Type `@run-ci` in the prompt. It completes to `ai/ci/run-ci.md`, and the
+agent follows it: it starts the script under `agent-job`, tells you CI is
+running, and ends its turn.
 
-- Run a long job under `agent-job`, detached, so the command returns at
-  once: `nohup agent-job <command> > /dev/null 2>&1 &`, or the shell
-  tool's own background option where it ends every process on return.
-  Whether the command is composed for the run or a script the project
-  keeps is a question of reuse: a one-off stays a one-liner, and a command
-  the project runs every time becomes a script under its `scripts/`.
-- Then end the turn. No polling, sleeping, or tailing: the report arrives
-  once the job finishes and the agent has been idle since.
-- Act on the report: the wrapped command and its exit code, or the line
-  the command wrote.
+Within a minute, the terminal shows a running-jobs icon at the top right.
+You can talk to the agent about something else, or walk away.
 
-A first try that shows the loop in any window: `agent-job sleep 180`. The
-host's runner icon appears within a minute, and the report follows the
-finish once the agent has been idle for two minutes.
+When the job finishes, the terminal waits for the agent to be idle for two
+minutes, then pastes the report into its prompt: `run-ci: PASS` or
+`run-ci: FAIL`, with the path of the log. The agent reads the log, fixes
+what it finds, and runs CI again the same way, until the report says pass.
 
-## A script that reports on its own
+The quickest first try, in any window, is `ai/agent-jobs/bin/agent-job
+sleep 180`: the icon appears, and three minutes later the report does.
 
-A bash script that must report even when someone runs it bare, without the
-wrapper, sources `scripts/job-events.sh` early, with no arguments:
+## Two things to know
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-. /path/to/agent-jobs/scripts/job-events.sh
+- **A busy agent gets no report.** The report is pasted only to an agent
+  that was idle when the job finished. If you kept the agent busy, the
+  report is dropped, since a paste would arrive late and read as a stale
+  second result. The agent then checks the log itself when you ask, or
+  when it next needs the result.
 
-# ... the long-running work ...
+- **A job that is killed still gets noticed.** A process killed outright
+  writes no report, but the terminal sees that it is gone and tells the
+  agent so, with the same idle rule. A result that is never coming does
+  not leave the agent waiting.
 
-AGENT_JOB_MSG="staging deploy: OK https://ci.example.com/build/912"
-```
+Jobs outlive the session that started them: a job started before a
+restart or a resume still reports to the resumed session.
 
-Source it with **no arguments**, so it sees the script's own positional
-parameters. `AGENT_JOB_MSG` can be set any time before exit, and the last
-value set is what the agent reads, verbatim; unset, the event records the
-script name and exit code. Under the wrapper such a script needs nothing
-extra: its message is forwarded, and exactly one event is reported.
+## The docs
 
-## What it does
-
-| Mechanism | Effect |
-|---|---|
-| Writes a start record to `${TMPDIR:-/tmp}/agent-events/` at launch, removed on exit | Tells the host a job is live (it can show a background-jobs indicator, surviving a session resume). A record whose process died with no completion event earns the agent a "gone without a completion report" notice, covering the SIGKILL and OOM case where a result is never coming. |
-| Writes one completion event file to the same spool on exit | The primary signal. The host delivers `msg` to the agent verbatim, at most once, and only to an agent that has been idle since the job finished; otherwise it consumes the event silently. The file is deleted either way. |
-| Reads `AGENT_SESSION_ID` from the environment | The routing key, set by the host on the shell it spawns and inherited by every process in that window. A resumed session keeps its token, so a job started before the resume still reports to it. Unset means nothing is listening and the whole block is a no-op. |
-| Exports `_AGENT_JOB_TOP` | Nested invocations stay silent, so a wrapper that reuses an inner script reports exactly once, from the outermost process. |
-
-`HUP`, `INT`, `TERM`, `PIPE`, and `QUIT` funnel into the `EXIT` trap, so an
-interrupted job still reports. Only SIGKILL-class deaths skip it, which is
-what the start record covers.
-
-## Opting out
-
-Clear the token for a single invocation:
-
-```bash
-AGENT_SESSION_ID= ./long-job.sh
-```
-
-## Guarantees
-
-None, deliberately. This is insurance underneath whatever re-engagement duty
-an agent's runbook already imposes, and nothing may depend on it for
-correctness. The contract covers the host's half: when a report is
-delivered and when it is withheld, the "no completion report" notice, and
-how events age out.
+- [`long-jobs.md`](long-jobs.md): what the agent follows to write a verb doc and a
+  script, and the rules for launching a job.
+- [`scripts/README.md`](scripts/README.md): how the reporting works
+  underneath, and how a script that is run on its own reports.
 
 ## Tests
 
 ```bash
 tests/job-events.sh
+tests/agent-doc.sh
 ```
-
-Covers the inert path, the event drop and its fields, the start record's
-lifecycle (present mid-run, removed on exit, left behind by SIGKILL),
-session-token sanitization, a custom message, a non-zero exit, the signal
-funnel, nesting silence, and the wrapper (default report, message file,
-forwarding from a sourced script, nesting).
 
 ## License
 
