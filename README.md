@@ -8,46 +8,55 @@ agent to pick the result up. An agent its CLI already woke, or that is busy
 with something else, gets no second report.
 
 This is the script side of AgentTerm's
-[`job-events.md`](https://github.com/albertwujj/agent-term/blob/main/job-events.md)
-contract. Two ways in:
-
-- **Wrap any command**: `bin/agent-job <command> [args...]` reports the
-  command's completion with no changes to the command itself.
-- **Source one file**: a bash script that sources `scripts/job-events.sh`
-  reports its own completion and can author its report message.
-
-Both are inert when no participating host is present. The script side is
+[`job-events.md`](https://github.com/albertwujj/agent-term/blob/main/docs/dev/job-events.md)
+contract. It is inert when no participating host is present, and
 host-agnostic: any host that watches the spool can consume it.
 
-## Adding it
+## The wrapper
 
-Clone this repo into `ai/` in your project, and leave `ai/` out of
-`.gitignore` so `@` pickers can see it; a clone beside the project or under
-your home directory works too
-([placement](https://github.com/albertwujj/agent-term/blob/main/docs/conventions.md#placement)).
-`bin/agent-job` is then at `ai/agent-jobs/bin/agent-job`, and `@run-ci`
-completes to the worked example below.
-
-## Wrapping a command
+`bin/agent-job` runs one command as a self-reporting job:
 
 ```bash
 agent-job npm run test:slow
 agent-job scripts/watch-build.sh --url https://ci.example.com/job/912/
 ```
 
-The default report is the command line and its exit code. A wrapped process
-can say something richer by writing one line to `$AGENT_JOB_MSG_FILE`, which
-the wrapper exports and reads at exit. A wrapped script that sources
-`job-events.sh` needs nothing extra: its `AGENT_JOB_MSG` is forwarded to the
-wrapper automatically, and exactly one event is reported.
+The default report is the command line and its exit code. A command says
+something richer by writing one line to `$AGENT_JOB_MSG_FILE`, which the
+wrapper exports and reads at exit:
 
-This is the launch convention to give an agent: run long jobs under
-`agent-job`, then end the turn. The agent knows a report will arrive once
-the job finishes and it has been idle since.
+```bash
+agent-job bash -c 'make check && v=PASS || v=FAIL; echo "make check: $v log=/tmp/ci.log" > "$AGENT_JOB_MSG_FILE"'
+```
 
-## Sourcing the stanza
+Write that line for the agent that launched the job: what ran, how it came
+out, one key link. Domain vocabulary lives in that line and nowhere else;
+the host relays it without parsing it.
 
-Source it early, with no arguments:
+## What to tell the agent
+
+An agent runs a long job under the wrapper. Three things, in the project's
+guide file or a verb doc of your own, so no prompt has to carry them:
+
+- Run a long job under `agent-job`, detached, so the command returns at
+  once: `nohup agent-job <command> > /dev/null 2>&1 &`, or the shell
+  tool's own background option where it ends every process on return.
+  Whether the command is composed for the run or a script the project
+  keeps is a question of reuse: a one-off stays a one-liner, and a command
+  the project runs every time becomes a script under its `scripts/`.
+- Then end the turn. No polling, sleeping, or tailing: the report arrives
+  once the job finishes and the agent has been idle since.
+- Act on the report: the wrapped command and its exit code, or the line
+  the command wrote.
+
+A first try that shows the loop in any window: `agent-job sleep 180`. The
+host's runner icon appears within a minute, and the report follows the
+finish once the agent has been idle for two minutes.
+
+## A script that reports on its own
+
+A bash script that must report even when someone runs it bare, without the
+wrapper, sources `scripts/job-events.sh` early, with no arguments:
 
 ```bash
 #!/usr/bin/env bash
@@ -60,34 +69,10 @@ AGENT_JOB_MSG="staging deploy: OK https://ci.example.com/build/912"
 ```
 
 Source it with **no arguments**, so it sees the script's own positional
-parameters.
-
-`AGENT_JOB_MSG` can be set any time before exit, and the last value set is
-what the agent reads, verbatim. Leave it unset and the event records the
-script name and exit code.
-
-Write the message for the agent that launched the job: what ran, how it came
-out, one key link. Domain vocabulary lives in that line and nowhere else. The
-host relays it without parsing it.
-
-## A full example
-
-`examples/` carries one worked loop, end to end: a verb doc the agent
-follows and the script it runs.
-
-- [`examples/run-ci.md`](examples/run-ci.md): name it in a prompt
-  (`@run-ci` completes to it) and the agent starts the project's CI under
-  `agent-job`, detached, ends its turn, and acts on the report when it
-  arrives.
-- [`examples/run-ci.sh`](examples/run-ci.sh): runs the CI command (its
-  arguments, else `$CI_COMMAND`, else a two-minute sleep as a stand-in, so
-  `@run-ci` alone shows the loop), with the output in a log, and reports `run-ci: PASS log=<path>` or
-  `run-ci: FAIL rc=<n> log=<path>`.
-
-The script shows the shape a self-reporting job settles into: one verdict
-line on stdout for a caller, an exit code that mirrors it, and one
-`emit()` that sets `AGENT_JOB_MSG` at every exit path, so the agent reads
-the same words a script would parse.
+parameters. `AGENT_JOB_MSG` can be set any time before exit, and the last
+value set is what the agent reads, verbatim; unset, the event records the
+script name and exit code. Under the wrapper such a script needs nothing
+extra: its message is forwarded, and exactly one event is reported.
 
 ## What it does
 
@@ -122,7 +107,6 @@ how events age out.
 
 ```bash
 tests/job-events.sh
-tests/examples.sh
 ```
 
 Covers the inert path, the event drop and its fields, the start record's
