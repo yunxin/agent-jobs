@@ -19,6 +19,15 @@ contract. Two ways in:
 Both are inert when no participating host is present. The script side is
 host-agnostic: any host that watches the spool can consume it.
 
+## Adding it
+
+Clone this repo into `ai/` in your project, and leave `ai/` out of
+`.gitignore` so `@` pickers can see it; a clone beside the project or under
+your home directory works too
+([placement](https://github.com/albertwujj/agent-term/blob/main/docs/conventions.md#placement)).
+`bin/agent-job` is then at `ai/agent-jobs/bin/agent-job`, and `@run-ci`
+completes to the worked example below.
+
 ## Wrapping a command
 
 ```bash

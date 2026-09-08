@@ -10,6 +10,9 @@ reports the result to you when the run finishes.
    nohup <clone>/bin/agent-job <clone>/examples/run-ci.sh > /dev/null 2>&1 &
    ```
 
+   If your shell tool ends every process when the command returns, use
+   the tool's own background option for this line instead.
+
    The script runs the arguments you give it, else `$CI_COMMAND` through
    bash, else `npm test`. Pass the project's CI command as the arguments
    when it is neither. The run's output goes to a log the report names.
