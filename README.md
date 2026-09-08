@@ -21,19 +21,26 @@ notes.
 
 ## Using it
 
-Tell the agent to run long jobs under `ai/agent-jobs/bin/agent-job`. It
-starts the job under the wrapper, says the job is running, and ends its
-turn. Within a minute the terminal shows a running-jobs icon at the top
-right, and you can give the agent other work, or walk away.
+A long job runs under the wrapper, detached, so the command returns at
+once:
+
+```bash
+nohup ai/agent-jobs/bin/agent-job <command> > /tmp/<job>.log 2>&1 &
+```
+
+Then the agent ends its turn, without polling, sleeping, or tailing the
+log. Within a minute the terminal shows a running-jobs icon at the top
+right, and the agent can be given other work while the job runs.
 
 When the job finishes, the terminal waits for the agent to be idle for two
 minutes, then pastes the report into its prompt: the command and its exit
-code, or a line the command wrote for it. The agent acts on it.
+code, or a line the command wrote for it. The agent acts on the report,
+reading the log at the path it chose when it launched the job.
 
-What the agent follows to launch a job and to write one that reports well
-is in [`long-jobs.md`](long-jobs.md). For a job the project runs often, the
-same doc says how the agent keeps the way it runs it, as a verb doc and
-scripts in a folder of your own beside this clone.
+[`long-jobs.md`](long-jobs.md) has the rest for the agent: a job that
+writes its own report line, and, for a job the project runs often, keeping
+the way it runs as a verb doc and scripts in a folder of your own beside
+this clone.
 
 ## Two things to know
 
