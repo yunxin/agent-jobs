@@ -72,6 +72,13 @@ how events age out.
 
 ## Tests
 
+Run from the repository root:
+
+```bash
+tests/job-events.sh
+tests/agent-doc.sh
+```
+
 `tests/job-events.sh` covers the inert path, the event drop and its fields,
 the start record's lifecycle (present mid-run, removed on exit, left behind
 by SIGKILL), session-token sanitization, a custom message, a non-zero exit,
